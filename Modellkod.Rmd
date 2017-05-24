@@ -1,0 +1,235 @@
+---
+title: "C uppsats"
+author: "Milla Esko"
+date: "13 april 2017"
+output: html_document
+---
+
+```{r,echo=FALSE,message=FALSE}
+s5<-read.csv("s0506.csv",header=T)
+s6<-read.csv("s0607.csv",header=T)
+s7<-read.csv("s0708.csv",header=T)
+s8<-read.csv("s0809.csv",header=T)
+s9<-read.csv("s0910.csv",header=T)
+s10<-read.csv("s1011.csv",header=T)
+s11<-read.csv("s1112.csv",header=T)
+s12<-read.csv("s1213.csv",header=T)
+s13<-read.csv("s1314.csv",header=T)
+s14<-read.csv("s1415.csv",header=T)
+s15<-read.csv("s1516.csv",header=T)
+s16<-read.csv("s1617.csv",header=T)
+
+s5$season<-2005
+s6$season<-2006
+s7$season<-2007
+s8$season<-2008
+s9$season<-2009
+s10$season<-2010
+s11$season<-2011
+s12$season<-2012
+s13$season<-2013
+s14$season<-2014
+s15$season<-2015
+s16$season<-2016
+
+
+p5<-read.csv("playoffs0506.csv",header=T,na.strings=c(""))
+p6<-read.csv("playoffs0607.csv",header=T,na.strings=c(""))
+p7<-read.csv("playoffs0708.csv",header=T,na.strings=c(""))
+p8<-read.csv("playoffs0809.csv",header=T,na.strings=c(""))
+p9<-read.csv("playoffs0910.csv",header=T,na.strings=c(""))
+p10<-read.csv("playoffs1011.csv",header=T,na.strings=c(""))
+p11<-read.csv("playoffs1112.csv",header=T,na.strings=c(""))
+p12<-read.csv("playoffs1213.csv",header=T,na.strings=c(""))
+p13<-read.csv("playoffs1314.csv",header=T,na.strings=c(""))
+p14<-read.csv("playoffs1415.csv",header=T,na.strings=c(""))
+p15<-read.csv("playoffs1516.csv",header=T,na.strings=c(""))
+p13<-cbind(c(1:93),p13)
+colnames(p13)[1]<-colnames(s13)[1]
+
+p5$season<-2005
+p6$season<-2006
+p7$season<-2007
+p8$season<-2008
+p9$season<-2009
+p10$season<-2010
+p11$season<-2011
+p12$season<-2012
+p13$season<-2013
+p14$season<-2014
+p15$season<-2015
+```
+
+
+```{r,echo=FALSE,message=FALSE}
+library(magrittr)
+library(dplyr)
+library(corrplot)
+library(ROCR)
+```
+
+````{r}
+data<-rbind(s6,s7,s8,s9,s10,s11,s12,s13,s14)
+colMeans(data[,c(5,7,10:12,15:17)])
+corrplot(cor(data[,c(5,7,10:12,15:17)]),method="pie")
+corrplot(cor(data[,c(5,7,10:12,15:17)]),method="number")
+````
+
+
+```{r, code = readLines("functions.R"),echo=FALSE}
+```
+
+```{r, code = readLines("modell1funktioner.R"),echo=FALSE}
+```
+
+
+
+
+
+# MODELL 1
+```{r,echo=FALSE,message=FALSE}
+n=3
+h6<-last(s5,p5,s6,n)
+h7<-last(s6,p6,s7,n)
+h8<-last(s7,p7,s8,n)
+h9<-last(s8,p8,s9,n)
+h10<-last(s9,p9,s10,n)
+h11<-last(s10,p10,s11,n)
+h12<-last(s11,p11,s12,n)
+h13<-last(s12,p12,s13,n)
+h14<-last(s13,p13,s14,n)
+h15<-last(s14,p14,s15,n)
+h16<-last(s15,p15,s16,n)
+train<-rbind(h6,h7,h8,h9,h10,h11,h12,h13,h14)#
+#head(train)
+teams=unique(train$Tm)
+x=seq(2006,2014,1)
+a=c(mean(s6$Res),mean(s7$Res),mean(s8$Res),mean(s9$Res),mean(s10$Res),
+    mean(s11$Res),mean(s12$Res),
+    mean(s13$Res),mean(s14$Res))
+
+#x=c("2006/2007","2007/2008",'2008/2009','2009/2010','2010/2011','2011/2012','2012/2013','2013/2014','2014/2015')
+
+b=c(mean(h6$Res),mean(h7$Res),mean(h8$Res),mean(h9$Res),mean(h10$Res),
+    mean(h11$Res),mean(h12$Res),
+    mean(h13$Res),mean(h14$Res))
+plot(x,b,pch=19,col="limegreen",xlab="Säsong", ylab="Vinstprocent,hemmalag")
+
+points(x,a,pch=19,col="blue",xlab="Säsong", ylab="Vinstprocent,hemmalag")
+```
+
+```{r,message=FALSE}
+model<-glm(Res~
+             SD+   LastHth+ sqrt(HthWP)+ exp(Pims.Tm)+ Pims.Opp+ LastGame.Opp+exp(LastGame2.Opp)+ Last3Games.Tm+ sqrt(OvertimeP.Tm) + exp(GALastGame.Tm)+exp(GFLastGame.Tm)+ 
+             exp(GF.Opp)+GA.Opp+exp(WP.Tm)+exp(GA.Opp.ls)+exp(GF.Opp.ls)+ log(WP.Tm.ls)/exp(GF.Tm.ls)+PlayoffWins.Tm,family="binomial",na.action=na.omit,data=train)
+summary(model)
+
+X<-model.matrix(model)
+M<-cor(X[,-1])
+corrplot(M,method="pie")
+exp(coefficients(model))
+```
+
+
+## Validation set
+```{r,echo=FALSE}
+valid= h15
+#teams=unique(valid$Tm)
+p.valid<-Analys(model,valid)
+v1<-Lagvis(valid,teams,p.valid)
+Wins15=TeamWinP(s15,teams)[1,]
+Wins16=TeamWinP(s16,teams)[1,]
+WinsHome15=TeamWinP(s15,teams)[2,]
+WinsHome16=TeamWinP(s16,teams)[2,]
+```
+
+```{r,echo=FALSE}
+op=par(mfrow=c(1,2))
+plot(Wins15*100,v1[1,]*100,type="n",xlab="Vinstprocent",ylab="Korrekta prediktioner, %")
+text(Wins15*100,v1[1,]*100,labels = teams)
+plot(WinsHome15*100,v1[2,]*100,type="n",xlab="Vinstprocent hemmamatcher",ylab="Korrekta prediktioner, %")
+text(WinsHome15*100,v1[2,]*100,labels = teams)
+```
+
+## Test set
+```{r,echo=FALSE,message=FALSE}
+test= h16
+p.test<-Analys(model,test)
+v2<-Lagvis(test,teams,p.test)
+```
+
+```{r,echo=FALSE,message=FALSE}
+op=par(mfrow=c(1,2))
+plot(Wins16*100,v2[1,]*100,type="n",xlab="Vinstprocent",ylab="Korrekta prediktioner, %")
+text(Wins16*100,v2[1,]*100,labels = teams)
+
+plot(WinsHome16*100,v2[2,]*100,type="n",xlab="Vinstprocent",ylab="Korrekta prediktioner, %")
+text(WinsHome16*100,v2[2,]*100,labels = teams)
+```
+
+# MODELL 2
+
+```{r, code = readLines("modell2funktioner.R"),echo=FALSE,message=FALSE}
+```
+
+```{r,echo=FALSE,message=FALSE}
+g6<-last2(s5,p5,s6)
+g7<-last2(s6,p6,s7)
+g8<-last2(s7,p7,s8)
+g9<-last2(s8,p8,s9)
+g10<-last2(s9,p9,s10)
+g11<-last2(s10,p10,s11)
+g12<-last2(s11,p11,s12)
+g13<-last2(s12,p12,s13)
+g14<-last2(s13,p13,s14)
+g15<-last2(s14,p14,s15)
+g16<-last2(s15,p15,s16)
+train2<-rbind(g6,g7,g8,g9,g10,g11,g12,g13,g14)
+```
+
+```{r}
+train2$SD<-train2$S.Tm/(train2$S.Tm+train2$S.Opp) #train$S.Tm-train$S.Opp
+g15$SD<-g15$S.Tm/(g15$S.Tm+g15$S.Opp)#h15$S.Tm-h15$S.Opp
+g16$SD<-g16$S.Tm/(g16$S.Tm+g16$S.Opp)#h16$S.Tm-h16$S.Opp
+
+model2<-glm(Res~DiffHth+ exp(GA.Tm)+sqrt(GPP.Tm) +exp(GF.Opp)+GA.Opp+sqrt(WinP.Tm)+sqrt(SD) +Pims.Opp, family="binomial", data=train2)
+summary(model2)
+```
+
+
+## Validation set
+```{r,echo=FALSE}
+valid2=g15
+p.valid2<-Analys(model2,valid2)
+w1<-Lagvis(valid2,teams,p.valid2)
+```
+
+
+```{r,echo=FALSE,message=FALSE}
+op=par(mfrow=c(1,2))
+plot(Wins15*100,w1[1,]*100,type="n",xlab="Vinstprocent",ylab="Korrekta prediktioner, %")
+text(Wins15*100,w1[1,]*100,labels = teams)
+plot(WinsHome15*100,w1[2,]*100,type="n",xlab="Vinstprocent",ylab="Korrekta prediktioner, %")
+text(WinsHome15*100,w1[2,]*100,labels = teams)
+```
+
+## Test set
+
+```{r,echo=FALSE}
+test2= g16
+p.test2<-Analys(model2,test2)
+w2<-Lagvis(test2,teams,p.test2)
+```
+
+```{r,echo=FALSE}
+op=par(mfrow=c(1,2))
+plot(Wins16*100,w2[1,]*100,type="n",xlab="Vinstprocent",ylab="Korrekta prediktioner, %")
+text(Wins16*100,w2[1,]*100,labels = teams)
+
+plot(WinsHome16*100,w2[2,]*100,type="n",xlab="Vinstprocent",ylab="Korrekta prediktioner, %")
+text(WinsHome16*100,w2[2,]*100,labels = teams)
+
+mean(w2[1,])
+
+```
+
